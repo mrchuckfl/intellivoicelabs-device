@@ -1,0 +1,37 @@
+{
+  "audio": {
+    "sample_rate": 16000,
+    "channels": 1,
+    "frames_per_buffer": 1024,
+    "alsa_input_device": "default",
+    "alsa_output_device": "default"
+  },
+  "gpio": {
+    "bypass_button": 17,
+    "language_button": 27,
+    "led_bypass": 22,
+    "led_convert": 23,
+    "ptt_input": 24,
+    "pullups": false
+  },
+  "display": {
+    "i2c_port": 13,
+    "i2c_address": 60,
+    "width": 128,
+    "height": 64,
+    "enabled": true
+  },
+  "modes": {
+    "default_mode": "convert",
+    "languages": [
+      "EN",
+      "ES",
+      "FR"
+    ]
+  },
+  "logging": {
+    "file": "/var/log/intellivoice.log",
+    "level": "INFO",
+    "metrics_csv": "/var/log/intellivoice_metrics.csv"
+  }
+}

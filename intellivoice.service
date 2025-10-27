@@ -1,0 +1,24 @@
+[Unit]
+Description=IntelliVoice Microphone Converter
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=mrchuck
+WorkingDirectory=/home/mrchuck/Projects/intellivoice-device
+ExecStart=/usr/bin/python3 /home/mrchuck/Projects/intellivoice-device/main.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# GPIO access requires root or gpio group membership
+# Uncomment if GPIO access fails:
+# Group=gpio
+
+# Environment variables
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+

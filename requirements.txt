@@ -1,0 +1,5 @@
+numpy
+pyaudio
+onnxruntime
+luma.oled
+gpiozero

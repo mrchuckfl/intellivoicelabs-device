@@ -1,0 +1,90 @@
+IntelliVoice Microphone Converter – Developer Technical Specification
+Version 1.0
+Project Owner: IntelliVoice Labs
+Device Platform: Raspberry Pi 5 (8GB)
+Prepared For: Software and Hardware Development Teams
+Date: October 2025
+
+1. Overview
+The IntelliVoice Microphone Converter is a compact inline audio processing device designed to normalize and enhance live microphone speech for clarity and intelligibility. It sits between a CB microphone and an amplifier, converting the input voice into a clear, neutral, and optionally translated voice in real-time.
+The system is built around a Raspberry Pi 5 and a High-Precision AD/DA Expansion Board (ADS1256 + DAC8532). It uses a NE5532 preamp to amplify microphone signals, and outputs to a speaker or PA system. The device includes a 1.3" OLED display for status, momentary push buttons for control, and LED indicators for mode feedback.
+
+2. System Purpose
+1) Capture live audio from a CB microphone.
+2) Pre-amplify the signal using a NE5532 analog preamp.
+3) Digitize the signal via ADS1256 (24-bit ADC).
+4) Process the voice digitally through an AI-based conversion engine (neutralization, enhancement, or translation).
+5) Reconstruct the processed voice to analog via DAC8532 (16-bit DAC).
+6) Output to the amplifier or speaker.
+7) Provide user controls through physical switches, LEDs, and an OLED interface.
+
+3. Hardware Components
+- Raspberry Pi 5 (8GB): main processing unit (Ubuntu 24.04 64-bit). Interfaces: GPIO, SPI, I²C, I²S
+- High-Precision AD/DA Board (ADS1256 + DAC8532): audio digitization/output via SPI; 24-bit ADC, 16-bit DAC
+- CB Microphone: audio input source (with PTT)
+- NE5532 Preamp Module: amplifies mic signal to line-level for ADC
+- 1.3" OLED Display (SSD1306): I²C 128×64 for status and VU
+- Momentary Push Buttons (x2): BYPASS/CONVERT and LANGUAGE
+- 3.3V LED Rings (x2): visual indicators (bypass/convert)
+- Optional: PTT line to GPIO (active-LOW)
+
+4. Hardware Connections
+Audio Path: CB Mic → NE5532 Preamp → ADS1256 ADC → Raspberry Pi (processing) → DAC8532 DAC → Amplifier
+Control/Display Path: PTT→GPIO, Mode→GPIO, Language→GPIO, LEDs→GPIO, OLED(SSD1306)→I²C
+
+5. GPIO Pin Assignments
+- GPIO17: Bypass Button (IN, pull-down)
+- GPIO27: Language Button (IN, pull-down)
+- GPIO22: LED #1 (Bypass) (OUT)
+- GPIO23: LED #2 (Convert) (OUT)
+- GPIO2: OLED SDA (I²C)
+- GPIO3: OLED SCL (I²C)
+- GPIO24: PTT signal (IN)
+- GPIO5–6,12–16 reserved
+
+6. Software Environment
+OS: Ubuntu 24.04 (64-bit). Prefer lowlatency kernel. Enable SPI and I²C.
+Packages:
+  sudo apt update && sudo apt install -y python3-pip python3-pyaudio python3-numpy python3-luma.oled python3-gpiozero python3-onnxruntime alsa-utils
+
+7. Software Architecture
+Layers:
+- Hardware Interface: ALSA for PCM; SPI/I²C for AD/DA; GPIO for buttons/leds/PTT
+- Audio Engine: capture, frame buffers, playback
+- Voice Processing Core: AI model (ONNX Runtime) for conversion/normalization
+- Control Layer: button/LED/PTT handlers
+- Display Layer: SSD1306 status, VU
+- Config & Logging: JSON config, file logs, optional MQTT/CSV
+
+8. Software Flow
+Main audio flow: Mic → NE5532 → ADS1256 → ALSA → AI Processing → DAC8532 → Amplifier
+Threads: Audio Input → Processing → Output; plus Display and Control
+Control: BYPASS routes ADC→DAC; CONVERT runs AI pipeline; LANGUAGE cycles target
+Display: Mode, Language, VU, CPU Temp/Latency
+
+9. Performance Targets
+- End-to-end latency ≤ 100 ms
+- 16 kHz mono speech path for efficiency
+- CPU usage < 70%, Memory < 2 GB
+- ALSA ring buffers 128–256 frames, performance governor enabled
+
+10. Telemetry & Logging
+- Local: /var/log/intellivoice.log
+- Optional: MQTT/CSV metrics (mode, temp, latency)
+- Example: [2025-10-26 20:00:11] Mode=Convert | Latency=84ms | Temp=54°C | Lang=EN
+
+11. Safety & Power
+- 5V 3A regulated supply for Pi 5
+- Common ground between preamp/ADC/Pi
+- Shielded audio cabling; consider transistor/MOSFET for LED rings >20mA
+
+12. Block Diagram (text)
+CB Mic -> NE5532 Preamp -> ADS1256 (ADC) -> Raspberry Pi 5 [Audio Engine, AI Core, GPIO/Display] -> DAC8532 (DAC) -> Amplifier
+I²C: SSD1306 OLED; GPIO: Buttons/LEDs/PTT
+
+13. Deliverables
+- Schematics/wiring diagram (out of scope in this packet; see pin table)
+- This technical spec
+- Starter Python framework (GPIO, OLED, Audio threads)
+- Example ONNX model placeholder hooks
+- Logging config and quick test plan
