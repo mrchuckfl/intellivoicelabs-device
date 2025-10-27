@@ -6,6 +6,7 @@ import json
 import queue
 import threading
 import logging
+import signal
 from datetime import datetime
 
 import numpy as np
@@ -270,6 +271,69 @@ def load_config():
         return json.load(f)
 
 
+def validate_config(cfg):
+    """Validate configuration file structure and values."""
+    errors = []
+    warnings = []
+    
+    # Required sections
+    required_sections = ["audio", "gpio", "display", "modes", "logging"]
+    for section in required_sections:
+        if section not in cfg:
+            errors.append(f"Missing required section: {section}")
+    
+    # Audio configuration
+    if "audio" in cfg:
+        audio_cfg = cfg["audio"]
+        if "sample_rate" not in audio_cfg:
+            errors.append("Missing audio.sample_rate")
+        elif not isinstance(audio_cfg["sample_rate"], int):
+            errors.append("audio.sample_rate must be an integer")
+        
+        if "channels" not in audio_cfg:
+            errors.append("Missing audio.channels")
+        elif not isinstance(audio_cfg["channels"], int):
+            errors.append("audio.channels must be an integer")
+        
+        if "frames_per_buffer" not in audio_cfg:
+            errors.append("Missing audio.frames_per_buffer")
+        elif not isinstance(audio_cfg["frames_per_buffer"], int):
+            errors.append("audio.frames_per_buffer must be an integer")
+    
+    # GPIO configuration
+    if "gpio" in cfg:
+        gpio_cfg = cfg["gpio"]
+        required_gpio_keys = ["bypass_button", "language_button", "led_bypass", "led_convert", "ptt_input"]
+        for key in required_gpio_keys:
+            if key not in gpio_cfg:
+                errors.append(f"Missing gpio.{key}")
+            elif not isinstance(gpio_cfg[key], int):
+                errors.append(f"gpio.{key} must be an integer")
+    
+    # Display configuration
+    if "display" in cfg:
+        display_cfg = cfg["display"]
+        if "enabled" not in display_cfg:
+            errors.append("Missing display.enabled")
+        if "i2c_port" not in display_cfg:
+            warnings.append("Missing display.i2c_port (using default: 13)")
+    
+    # Mode configuration
+    if "modes" in cfg:
+        modes_cfg = cfg["modes"]
+        if "default_mode" not in modes_cfg:
+            errors.append("Missing modes.default_mode")
+        elif modes_cfg["default_mode"] not in ["bypass", "convert"]:
+            errors.append("modes.default_mode must be 'bypass' or 'convert'")
+        
+        if "languages" not in modes_cfg:
+            errors.append("Missing modes.languages")
+        elif not isinstance(modes_cfg["languages"], list):
+            errors.append("modes.languages must be a list")
+    
+    return errors, warnings
+
+
 def setup_logging(cfg):
     logging.basicConfig(
         level=getattr(logging, cfg["logging"].get("level", "INFO")),
@@ -282,19 +346,53 @@ def setup_logging(cfg):
 
 def main():
     cfg = load_config()
+    
+    # Validate configuration
+    errors, warnings = validate_config(cfg)
+    if errors:
+        print("Configuration errors found:")
+        for error in errors:
+            print(f"  ERROR: {error}")
+        sys.exit(1)
+    
+    if warnings:
+        print("Configuration warnings:")
+        for warning in warnings:
+            print(f"  WARNING: {warning}")
+    
     setup_logging(cfg)
+    logging.info("IntelliVoice Device starting...")
 
     state = StateManager(cfg)
+    
+    # Global reference for signal handler
+    global_audio = None
+    global_gpio = None
+
+    def signal_handler(signum, frame):
+        """Handle shutdown signals gracefully."""
+        logging.info(f"Received signal {signum}, shutting down gracefully...")
+        state.running = False
+        if global_audio:
+            global_audio.stop()
+
+    # Register signal handlers
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     display = OLEDDisplay(cfg)
 
     gpioctl = GPIOController(cfg, state)
+    global_gpio = gpioctl
 
     audio = AudioEngine(cfg, state)
+    global_audio = audio
     audio.start()
 
+    logging.info("System initialized and running")
+
     try:
-        while True:
+        while state.running:
             # Periodic status refresh
             gpioctl.update_leds()
             snap = state.get_snapshot()
@@ -307,9 +405,11 @@ def main():
             display.draw_text(lines)
             time.sleep(0.05)
     except KeyboardInterrupt:
-        pass
+        logging.info("Keyboard interrupt received")
     finally:
+        logging.info("Shutting down...")
         audio.stop()
+        logging.info("IntelliVoice Device stopped")
 
 
 if __name__ == "__main__":
