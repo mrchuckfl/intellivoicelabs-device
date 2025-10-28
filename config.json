@@ -15,7 +15,7 @@
     "pullups": false
   },
   "display": {
-    "i2c_port": 13,
+    "i2c_port": 1,
     "i2c_address": 60,
     "width": 128,
     "height": 64,
