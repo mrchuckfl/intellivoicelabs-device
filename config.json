@@ -4,7 +4,10 @@
     "channels": 1,
     "frames_per_buffer": 1024,
     "alsa_input_device": "default",
-    "alsa_output_device": "default"
+    "alsa_output_device": "default",
+    "hifiberry_card": 2,
+    "input_channel": "right",
+    "adc_gain": 70
   },
   "gpio": {
     "bypass_button": 17,
