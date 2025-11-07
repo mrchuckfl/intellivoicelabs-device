@@ -64,10 +64,10 @@ def test_passthrough(duration=5, sample_rate=44100, use_right_channel=True):
             frames_per_buffer=1024
         )
         
-        # Open output stream (mono)
+        # Open output stream (stereo - duplicate mono to both channels)
         output_stream = pa.open(
             format=pyaudio.paInt16,
-            channels=1,  # Output mono
+            channels=2,  # Output stereo
             rate=sample_rate,
             output=True,
             output_device_index=output_device,
@@ -102,8 +102,13 @@ def test_passthrough(duration=5, sample_rate=44100, use_right_channel=True):
                 # Track max level
                 max_level = max(max_level, np.max(np.abs(mono_samples)))
                 
+                # Duplicate mono to stereo (both channels)
+                stereo_samples = np.zeros(len(mono_samples) * 2, dtype=np.int16)
+                stereo_samples[0::2] = mono_samples  # Left channel
+                stereo_samples[1::2] = mono_samples  # Right channel
+                
                 # Write to output
-                output_stream.write(mono_samples.tobytes())
+                output_stream.write(stereo_samples.tobytes())
                 
                 samples_processed += len(mono_samples)
                 
